@@ -12,13 +12,13 @@ class ExperimentConfig:
     SAMPLE_RATE = 48000
     DURATION = 2
     LEFT_CARRIER_FREQ = 440
-    RIGHT_CARRIER_FREQ = 400
+    RIGHT_CARRIER_FREQ = 340
     MOD_FREQ_HIGH = 40
-    MOD_FREQ_LOW = 25
+    MOD_FREQ_LOW = 15
     VISUAL_FREQ_HIGH = 18
     VISUAL_FREQ_LOW = 13
     NUM_BLOCKS = 6
-    TRIALS_PER_BLOCK = 40  # should be 40
+    TRIALS_PER_BLOCK = 4  # should be 40
     BREAK_TIME = 60  # 休息时间（秒）
     SF = 0.03
     REFRESH_RATE = 60
@@ -82,13 +82,20 @@ class BittiumTriggerSender:
             core.wait(self.trigger_duration)
             core.wait(self.trigger_duration)
         else:
-            # Send the trigger (setData sets the port pins to the value of trigger)
-            self.parallel_port.setData(trigger_code)
-            # Keep the trigger high for the specified time
-            core.wait(self.trigger_duration)
-            self.parallel_port.setData(0)  # Reset trigger to low
-            # Small pause after resetting the trigger
-            core.wait(self.trigger_duration)
+            try:
+                print(f"Trigger sent: {trigger_code}")
+                # Send the trigger (setData sets the port pins to the value of trigger)
+                clock = core.Clock()
+                self.parallel_port.setData(trigger_code)
+                # Keep the trigger high for the specified time
+                while clock.getTime() < self.trigger_duration:
+                    pass
+                self.parallel_port.setData(0)  # Reset trigger to low
+                # Small pause after resetting the trigger
+                while clock.getTime() < self.trigger_duration:
+                    pass
+            except Exception as e:
+                print(f"Error sending trigger: {e}")
 
 # Function to check experimental setup
 
@@ -285,8 +292,6 @@ class VisualStimulus(Stimulus):
 
     def present(self, duration=None, response_handler=None, block_trial_text=None):
         """Present the visual stimulus for the specified duration."""
-        print(
-            f"VisualStimulus.present running on thread: {threading.current_thread().name}")
         self.trigger_sender.send_trigger(
             21 if self.left_freq == ExperimentConfig.VISUAL_FREQ_HIGH else 22)
 
@@ -296,9 +301,10 @@ class VisualStimulus(Stimulus):
         while duration is None or clock.getTime() - start_time < duration:
             current_time = clock.getTime() - start_time  # 获取当前相对时间
 
+            # user_response = None
+
             keys = event.getKeys(keyList=["left", "right", "escape"])
             if keys:
-                print(f"Captured keys during visual stimulus: {keys}")
                 user_response = keys[0]  # 保存用户响应
                 if "escape" in keys:  # 如果按下 ESC，直接退出程序
                     self.win.close()
@@ -331,7 +337,7 @@ class VisualStimulus(Stimulus):
         self.trigger_sender.send_trigger(
             25 if self.left_freq == ExperimentConfig.VISUAL_FREQ_HIGH else 26)
 
-        return user_response
+        return None if duration is not None else user_response
 
 
 class AuditoryStimulus(Stimulus):
@@ -629,7 +635,7 @@ class Experiment:
                 correct_answers += 1
 
             # Print trial details
-            print(f"\nTrial {trial_index + 1} (Block {block + 1}):")
+            print(f"\nTrial {trial_index + 1} (Block {block}):")
             print(f"  Visual High: {visual_high}, Audio High: {audio_high}")
             print(
                 f"  Correct Response: {correct_response}, User Response: {response}\n")
@@ -656,7 +662,7 @@ class Experiment:
         :param block: The current block number
         """
         break_text = visual.TextStim(
-            win, text=f"Block {block + 1} complete. Take a 1-minute break.", color="white", pos=(0, 0)
+            win, text=f"Block {block} complete. Take a 1-minute break.", color="white", pos=(0, 0)
         )
         break_text.draw()
         win.flip()
@@ -695,11 +701,11 @@ if __name__ == "__main__":
     # Resting State (adjustable duration)
     # Run resting state experiment
     resting_state_eyes_open = RestingState(
-        win, trigger_sender, duration=60, eyes_open=True)
+        win, trigger_sender, duration=1, eyes_open=True)
     resting_state_eyes_open.start()  # Eye open phase
 
     resting_state_eyes_closed = RestingState(
-        win, trigger_sender, duration=60, eyes_open=False)
+        win, trigger_sender, duration=1, eyes_open=False)
     resting_state_eyes_closed.start()  # Eye closed phase
 
     transition_text = visual.TextStim(
@@ -726,13 +732,13 @@ if __name__ == "__main__":
     trigger_sender.send_trigger(10)  # visual_training_start
     training_manager = TrainingManager(win, trigger_sender)
     config = ExperimentConfig()
-    training_manager.run_visual_training(config.VISUAL_FREQ_HIGH, config.VISUAL_FREQ_LOW, 10,
+    training_manager.run_visual_training(config.VISUAL_FREQ_HIGH, config.VISUAL_FREQ_LOW, 1,
                                          "Focus on the left-side high-frequency stimuli.")
-    training_manager.run_visual_training(config.VISUAL_FREQ_LOW, config.VISUAL_FREQ_HIGH, 10,
+    training_manager.run_visual_training(config.VISUAL_FREQ_LOW, config.VISUAL_FREQ_HIGH, 1,
                                          "Focus on the left-side low-frequency stimuli.")
-    training_manager.run_visual_training(config.VISUAL_FREQ_LOW, config.VISUAL_FREQ_HIGH, 10,
+    training_manager.run_visual_training(config.VISUAL_FREQ_LOW, config.VISUAL_FREQ_HIGH, 1,
                                          "Focus on the right-side high-frequency stimuli.")
-    training_manager.run_visual_training(config.VISUAL_FREQ_HIGH, config.VISUAL_FREQ_LOW, 10,
+    training_manager.run_visual_training(config.VISUAL_FREQ_HIGH, config.VISUAL_FREQ_LOW, 1,
                                          "Focus on the right-side low-frequency stimuli.")
     trigger_sender.send_trigger(11)  # visual_training_end
 
@@ -751,19 +757,19 @@ if __name__ == "__main__":
     # Run auditory training sessions
     trigger_sender.send_trigger(12)  # auditory_training_start
     training_manager.run_auditory_training(
-        tone_high, tone_low, tone_high_freq, 10,
+        tone_high, tone_low, tone_high_freq, 1,
         "Focus on the left-side high-frequency auditory stimuli."
     )
     training_manager.run_auditory_training(
-        tone_low, tone_high, tone_low_freq, 10,
+        tone_low, tone_high, tone_low_freq, 1,
         "Focus on the left-side low-frequency auditory stimuli."
     )
     training_manager.run_auditory_training(
-        tone_low, tone_high, tone_low_freq, 10,
+        tone_low, tone_high, tone_low_freq, 1,
         "Focus on the right-side high-frequency auditory stimuli."
     )
     training_manager.run_auditory_training(
-        tone_high, tone_low, tone_high_freq, 10,
+        tone_high, tone_low, tone_high_freq, 1,
         "Focus on the right-side low-frequency auditory stimuli."
     )
     trigger_sender.send_trigger(13)  # auditory_training_end
