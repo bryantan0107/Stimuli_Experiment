@@ -11,18 +11,17 @@ import threading
 class ExperimentConfig:
     SAMPLE_RATE = 48000
     DURATION = 2
-    LEFT_CARRIER_FREQ = 440
-    RIGHT_CARRIER_FREQ = 340
+    LEFT_CARRIER_FREQ = 400
+    RIGHT_CARRIER_FREQ = 450
     MOD_FREQ_HIGH = 40
-    MOD_FREQ_LOW = 25
+    MOD_FREQ_LOW = 23
     VISUAL_FREQ_HIGH = 15  # 10，12，15，20，30，60
     VISUAL_FREQ_LOW = 12
     NUM_BLOCKS = 6
-    TRIALS_PER_BLOCK = 12  # should be 40
-    BREAK_TIME = 10  # 休息时间（秒）
+    TRIALS_PER_BLOCK = 40  # should be 40
+    BREAK_TIME = 60  # 休息时间（秒）
     SF = 0.035
     REFRESH_RATE = 60
-    REST_DURATION = 3
 
 # Function to create modulated tones
 
@@ -296,9 +295,9 @@ class VisualStimulus(Stimulus):
         """
         super().__init__(win, duration=None)  # Visual stimuli are not duration-specific
         self.left_grating = visual.GratingStim(
-            win, tex="sin", mask="gauss", sf=sf, units="pix", size=(350, 350), pos=(-200, 0), ori=0)
+            win, tex="sin", mask="gauss", sf=sf, units="pix", size=(350, 350), pos=(-200, 0), ori=0, contrast=0.8)
         self.right_grating = visual.GratingStim(
-            win, tex="sin", mask="gauss", sf=sf, units="pix", size=(350, 350), pos=(200, 0), ori=0)
+            win, tex="sin", mask="gauss", sf=sf, units="pix", size=(350, 350), pos=(200, 0), ori=0, contrast=0.8)
         self.left_freq = left_freq
         self.right_freq = right_freq
         self.trigger_sender = trigger_sender
@@ -315,7 +314,7 @@ class VisualStimulus(Stimulus):
         self.trigger_sender.send_trigger(
             21 if self.left_freq == ExperimentConfig.VISUAL_FREQ_HIGH else 22)
 
-        REFRESH_RATE = win.getActualFrameRate() or 60
+        REFRESH_RATE = 60
         # Frames per cycle calculation for flickering
         frames_per_cycle_left = int(REFRESH_RATE / self.left_freq)
         frames_per_cycle_right = int(REFRESH_RATE / self.right_freq)
@@ -381,11 +380,11 @@ class VisualStimulus(Stimulus):
             frame_n_right += 1
 
             # # 应用对比度条件
-            if self.left_freq == ExperimentConfig.VISUAL_FREQ_LOW:
-                self.left_grating.contrast = 0.9
-
-            if self.right_freq == ExperimentConfig.VISUAL_FREQ_LOW:
-                self.right_grating.contrast = 0.9
+##            if self.left_freq == ExperimentConfig.VISUAL_FREQ_LOW:
+##                self.left_grating.contrast = 0.9
+##
+##            if self.right_freq == ExperimentConfig.VISUAL_FREQ_LOW:
+##                self.right_grating.contrast = 0.9
 
             # Draw gratings based on current states
             if left_on:
@@ -615,8 +614,8 @@ class Experiment:
             "Reminder:\n\n "
             "This is a brief reminder to help you stay focused on the task:\n\n"
             "Your task is to determine which stimuli have the higher frequency.\n\n"
-            "➡️ If both the higher frequency visual and auditory stimuli are on the right side, press the 'right' key.\n"
-            "⬅️ Otherwise, press the 'left' key.\n\n"
+            "If both the higher frequency visual and auditory stimuli are on the right side, press the 'right' key.\n"
+            "Otherwise, press the 'left' key.\n\n"
             f"Here are the instructions for this block:\n\n"
             + focus_messages.get(focus_type, "")
             + "When you are ready, press any key to continue."
@@ -822,13 +821,13 @@ if __name__ == "__main__":
     show_introduction(win)
 
     # Run resting state experiment
-    resting_state_eyes_open = RestingState(
-        win, trigger_sender, duration=5, eyes_open=True)
-    resting_state_eyes_open.start()  # Eye open phase
-
-    resting_state_eyes_closed = RestingState(
-        win, trigger_sender, duration=5, eyes_open=False)
-    resting_state_eyes_closed.start()  # Eye closed phase
+##    resting_state_eyes_open = RestingState(
+##        win, trigger_sender, duration=60, eyes_open=True)
+##    resting_state_eyes_open.start()  # Eye open phase
+##
+##    resting_state_eyes_closed = RestingState(
+##        win, trigger_sender, duration=60, eyes_open=False)
+##    resting_state_eyes_closed.start()  # Eye closed phase
 
     # Visual Training
     training_text = visual.TextStim(
@@ -849,14 +848,14 @@ if __name__ == "__main__":
     trigger_sender.send_trigger(10)  # visual_training_start
     training_manager = TrainingManager(win, trigger_sender)
     config = ExperimentConfig()
-    training_manager.run_visual_training(config.VISUAL_FREQ_HIGH, config.VISUAL_FREQ_LOW, 5,
-                                         "Focus on the left-side high-frequency stimuli.")
-    training_manager.run_visual_training(config.VISUAL_FREQ_LOW, config.VISUAL_FREQ_HIGH, 5,
-                                         "Focus on the left-side low-frequency stimuli.")
-    training_manager.run_visual_training(config.VISUAL_FREQ_LOW, config.VISUAL_FREQ_HIGH, 5,
-                                         "Focus on the right-side high-frequency stimuli.")
-    training_manager.run_visual_training(config.VISUAL_FREQ_HIGH, config.VISUAL_FREQ_LOW, 5,
-                                         "Focus on the right-side low-frequency stimuli.")
+##    training_manager.run_visual_training(config.VISUAL_FREQ_HIGH, config.VISUAL_FREQ_LOW, 15,
+##                                         "Focus on the left-side high-frequency stimuli.")
+##    training_manager.run_visual_training(config.VISUAL_FREQ_LOW, config.VISUAL_FREQ_HIGH, 15,
+##                                         "Focus on the left-side low-frequency stimuli.")
+##    training_manager.run_visual_training(config.VISUAL_FREQ_LOW, config.VISUAL_FREQ_HIGH, 15,
+##                                         "Focus on the right-side high-frequency stimuli.")
+##    training_manager.run_visual_training(config.VISUAL_FREQ_HIGH, config.VISUAL_FREQ_LOW, 15,
+##                                         "Focus on the right-side low-frequency stimuli.")
     trigger_sender.send_trigger(11)  # visual_training_end
 
     # Auditory Training
@@ -874,22 +873,22 @@ if __name__ == "__main__":
 
     # Run auditory training sessions
     trigger_sender.send_trigger(12)  # auditory_training_start
-    training_manager.run_auditory_training(
-        tone_high, tone_low, tone_high_freq, 5,
-        "🎵 Focus on the left-side high-frequency auditory stimuli."
-    )
-    training_manager.run_auditory_training(
-        tone_low, tone_high, tone_low_freq, 5,
-        "🎵 Focus on the left-side low-frequency auditory stimuli."
-    )
-    training_manager.run_auditory_training(
-        tone_low, tone_high, tone_low_freq, 5,
-        "🎵 Focus on the right-side high-frequency auditory stimuli."
-    )
-    training_manager.run_auditory_training(
-        tone_high, tone_low, tone_high_freq, 5,
-        "🎵 Focus on the right-side low-frequency auditory stimuli."
-    )
+##    training_manager.run_auditory_training(
+##        tone_high, tone_low, tone_high_freq, 15,
+##        "Focus on the left-side high-frequency auditory stimuli."
+##    )
+##    training_manager.run_auditory_training(
+##        tone_low, tone_high, tone_low_freq, 15,
+##        "Focus on the left-side low-frequency auditory stimuli."
+##    )
+##    training_manager.run_auditory_training(
+##        tone_low, tone_high, tone_low_freq, 15,
+##        "Focus on the right-side high-frequency auditory stimuli."
+##    )
+##    training_manager.run_auditory_training(
+##        tone_high, tone_low, tone_high_freq, 15,
+##        "Focus on the right-side low-frequency auditory stimuli."
+##    )
     trigger_sender.send_trigger(13)  # auditory_training_end
 
     # Introduction Screens
@@ -952,11 +951,11 @@ if __name__ == "__main__":
 
     # Run resting state experiment
     resting_state_eyes_open = RestingState(
-        win, trigger_sender, duration=5, eyes_open=True)
+        win, trigger_sender, duration=60, eyes_open=True)
     resting_state_eyes_open.start()  # Eye open phase
 
     resting_state_eyes_closed = RestingState(
-        win, trigger_sender, duration=5, eyes_open=False)
+        win, trigger_sender, duration=60, eyes_open=False)
     resting_state_eyes_closed.start()  # Eye closed phase
 
     transition_text = visual.TextStim(
