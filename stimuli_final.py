@@ -28,6 +28,9 @@ class ExperimentConfig:
     REFRESH_RATE = 60  # Screen refresh rate (Hz)
     RUN_RESTING_STATE = True  # When False the resting state will be skipped
     RUN_TRAINING_SESSION = True  # When False the training session will be skipped
+    PARALLEL_PORT = True  # When False trigger won't get sent over the parallel port
+    RIGHT_KEY = "j"
+    LEFT_KEY = "f"
 
 
 # Visual and Auditory stimulus combinations for main experiment
@@ -138,6 +141,19 @@ class BittiumTriggerSender:
                     pass
             except Exception as e:
                 print(f"Error sending trigger: {e}")
+
+
+class PrintTriggerSender:
+    """
+    Sends triggers to external hardware. (Bittium NeurOne EEG system)
+    """
+
+    def send_trigger(self, trigger_code: int) -> None:
+        """
+        Sends a trigger to the hardware.
+        :param trigger_code: Trigger code to be sent
+        """
+        print(f"Trigger: {trigger_code}")
 
 
 # Function to check experimental setup
@@ -372,19 +388,25 @@ class VisualStimulus(Stimulus):
 
         while duration is None or clock.getTime() - start_time < duration:
             # Check for user response
-            keys = event.getKeys(keyList=["left", "right", "escape"])
+            keys = event.getKeys(keyList=[ExperimentConfig.LEFT_KEY, ExperimentConfig.RIGHT_KEY, "escape"])
             if keys:
-                user_response = keys[0]
                 if "escape" in keys:
                     self.win.close()
                     core.quit()
-                elif user_response == "left":
-                    self.trigger_sender.send_trigger(
-                        25)  # Left button trigger
-                elif user_response == "right":
-                    self.trigger_sender.send_trigger(
-                        26)  # Right button trigger
+                elif keys[0] == ExperimentConfig.LEFT_KEY:
+                    self.trigger_sender.send_trigger(25)  # Left button trigger
+                elif keys[0] == ExperimentConfig.RIGHT_KEY:
+                    self.trigger_sender.send_trigger(26)  # Right button trigger
+
+                if keys[0] == ExperimentConfig.LEFT_KEY:
+                    user_response = "left"
+                elif keys[0] == ExperimentConfig.RIGHT_KEY:
+                    user_response = "right"
+                else:
+                    user_response = None
+
                 break
+
 
             if response_handler and response_handler():  # Exit if external response handler is triggered
                 break
@@ -606,15 +628,15 @@ class Experiment:
                 text=f"Visual High: {visual_high}, Audio High: {audio_high}\n"
                 f"Correct Response: {correct_response}, Your Response: {response}\n\n"
                 "Did you feel ready to complete the task?\n\n"
-                "Press 'right' to proceed to the trial.\n"
-                "Press 'left' to repeat the practice session.",
-                font="Noto Color Emoji", color="white", pos=(0, 0)
+                f"Press '{ExperimentConfig.RIGHT_KEY}' to proceed to the trial.\n"
+                f"Press '{ExperimentConfig.LEFT_KEY}' to repeat the practice session.",
+                color="white", pos=(0, 0)
             )
             feedback.draw()
             self.win.flip()
 
-            keys = event.waitKeys(keyList=["left", "right"])
-            if "right" in keys:
+            keys = event.waitKeys(keyList=[ExperimentConfig.LEFT_KEY, ExperimentConfig.RIGHT_KEY])
+            if ExperimentConfig.RIGHT_KEY in keys:
                 break  # Exit the practice session
 
     def show_block_focus(self, block, focus_type):
@@ -658,8 +680,8 @@ class Experiment:
             "Reminder:\n\n "
             "This is a brief reminder to help you stay focused on the task:\n\n"
             "Your task is to determine which stimuli have the higher frequency.\n\n"
-            "If both the higher frequency visual and auditory stimuli are on the right side, press the 'right' key.\n"
-            "Otherwise, press the 'left' key.\n\n"
+            f"If both the higher frequency visual and auditory stimuli are on the right side, press the '{ExperimentConfig.RIGHT_KEY}' key with your right hand.\n"
+            f"Otherwise, press the '{ExperimentConfig.LEFT_KEY}' key with your left hand.\n\n"
             "There will be a cross in the center of the screen. Please try your best to\n"
             "keep your eyes focused on the cross while observing the flickering patterns.\n\n"
             f"Here are the instructions for this block:\n\n"
@@ -884,8 +906,11 @@ class Experiment:
 
 if __name__ == "__main__":
     # Initialize the trigger sender (assuming ParallelPort is already set up)
-    trigger_sender = BittiumTriggerSender(
-        ParallelPort(0x378), trigger_duration=0.005)
+    if ExperimentConfig.PARALLEL_PORT:
+        trigger_sender = BittiumTriggerSender(
+            ParallelPort(0x378), trigger_duration=0.005)
+    else:
+        trigger_sender = PrintTriggerSender()
 
     # Experiment main loop
     trigger_sender.send_trigger(1)  # session_start
@@ -972,8 +997,8 @@ if __name__ == "__main__":
         win,
         text=("Training session complete. Welcome to the main experiment!\n\n"
               "Your task is as follows:\n\n"
-              "If both the higher frequency visual and auditory stimuli are on the right side, press the 'right' key.\n"
-              "If not, press the 'left' key.\n\n"
+              f"If both the higher frequency visual and auditory stimuli are on the right side, press the '{ExperimentConfig.RIGHT_KEY}' key with your right hand.\n"
+              f"If not, press the '{ExperimentConfig.LEFT_KEY}' key with your left hand.\n\n"
               "There will be a cross in the center of the screen. Please try your best to\n"
               "keep your eyes focused on the cross while observing the flickering patterns.\n\n"
               "When you are ready, press any key to start the experiment."),
